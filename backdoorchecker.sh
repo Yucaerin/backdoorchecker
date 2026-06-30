@@ -14,7 +14,6 @@ fi
 
 > "$OUTPUT" 2>/dev/null
 
-# Function untuk check single URL
 check_shell() {
     local url="$1"
     local status
@@ -27,10 +26,8 @@ check_shell() {
     
     [ -z "$url" ] && return
     
-    # Tambah http:// jika tidak ada protocol
     [[ "$url" =~ ^https?:// ]] || url="http://$url"
     
-    # Curl dengan redirect, timeout 10s, dan ambil response body
     response=$(curl -sL --max-redirs 5 --connect-timeout 10 --max-time 15 \
         -A "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0" \
         -w "\nHTTP_CODE:%{http_code}\nSIZE:%{size_download}\n" \
@@ -40,10 +37,8 @@ check_shell() {
     size=$(echo "$response" | grep "SIZE:" | cut -d: -f2)
     body=$(echo "$response" | sed -n '1,/HTTP_CODE:/p' | head -n -1)
     
-    # Check status code yang valid (tidak hanya 200)
     case "$status" in
         200|201|202|204)
-            # Check konten untuk indikasi shell (bypass false positive)
             if echo "$body" | grep -qiE "(shell|upload|backdoor|cmd|exec|system|passthru|eval|uname|hacked|root|admin|wso|b374k|china|shellbot|file manager)"; then
                 echo -e "\e[32m[✅ SHELL CONFIRMED] $url (Status: $status | Size: ${size}b)\e[0m"
                 echo "$url" >> "$OUTPUT"
@@ -55,7 +50,6 @@ check_shell() {
             echo -e "\e[36m[↪️  REDIRECT] $url (Status: $status)\e[0m"
             ;;
         403)
-            # 403 bisa jadi shell yang diprotect atau WAF
             if echo "$body" | grep -qiE "(forbidden|403|cloudflare|akamai|incapsula)"; then
                 echo -e "\e[35m[🛡️  BLOCKED/WAF] $url (Status: 403)\e[0m"
             else
@@ -81,7 +75,6 @@ echo "[*] Scanning $(wc -l < "$LIST") URLs with $THREADS threads..."
 echo "[*] Results saved to: $OUTPUT"
 echo ""
 
-# Gunakan xargs untuk parallel processing
 cat "$LIST" | xargs -P "$THREADS" -I {} bash -c 'check_shell "$@"' _ {}
 
 echo ""
